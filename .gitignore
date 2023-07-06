@@ -1,0 +1,39 @@
+!.gitignore
+!*.md
+!LICENSE
+
+# Ignore Folders
+.vscode
+.cloud
+.storage
+.google_api
+.inactive
+tts
+image
+custom_components/*/*
+files
+zz_test
+dev
+www/*
+
+# Add these anyway
+!www/community
+
+# Ignore Extensions
+*.db
+*.old
+*.log
+*.conf
+*.db-shm
+*.db-wal
+*.csv
+*.log.*
+
+# Ensure these YAML files are ignored, otherwise your secret data/credentials will leak.
+ip_bans.yaml
+secrets.yaml
+known_devices.yaml
+include/lovelace/02_admin/04_lab.yaml
+.google.token
+watchman_report.txt
+google_calendars.yaml
