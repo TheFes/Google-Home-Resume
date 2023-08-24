@@ -911,14 +911,7 @@ script:
                                 timeout: "00:00:10"
                               - alias: "Go to the right position in the track when resume is performed"
                                 if: "{{ wait.completed }}"
-                                then: &seek
-                                  - alias: "Seek"
-                                    service: media_player.media_seek
-                                    target:
-                                      entity_id: "{{ player.entity_id }}"
-                                    data:
-                                      seek_position: >
-                                        {{ [0, player.media_position - 3] | max }}
+                                then: *seek
                           - alias: "YouTube?"
                             conditions: "{{ player.type == 'screen' and youtube }}"
                             sequence:
