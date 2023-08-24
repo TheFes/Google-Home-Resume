@@ -666,7 +666,7 @@ script:
               if: "{{ wait_set }}"
               then:
                 - wait_for_trigger:
-                   - platform: event
+                    - platform: event
                       event_type: state_changed
                       event_data:
                         entity_id: "{{ cast_target[0] }}"
