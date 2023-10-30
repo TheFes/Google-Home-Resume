@@ -54,7 +54,7 @@ ___
 
 #### 🚨 BREAKING
 
-* (2022.8.0) Removed support for Music Assistant. The integration is broken for a couple of months already, and the new version is still in beta. Will look at it again if the final version of MA2 is released
+* (2023.8.0) Removed support for Music Assistant. The integration is broken for a couple of months already, and the new version is still in beta. Will look at it again if the final version of MA2 is released
 
 ### :recycle: RESUME SCRIPT
 
@@ -64,8 +64,8 @@ ___
 
 #### 🐛 Bug fixes
 
-* (2022.8.0) Fix bug in target determination
-* (2022.8.0) Actually use the correct setting for enabling the automation, so now setting this to `false` actually works.
+* (2023.8.0) Fix bug in target determination
+* (2023.8.0) Actually use the correct setting for enabling the automation, so now setting this to `false` actually works.
 
 Previous changes can be found here:
 * [General package changes](docs/changelogs/changelog_general.md)
