@@ -616,7 +616,11 @@ script:
                   }}
                 data: >
                   {{ dict(service_call.get('data', {}).items() | rejectattr('0', 'in', ['entity_id', 'area_id', 'device_id', 'script_extra']) | list) }}
-            - if: "{{ settings.get('stop_before_action', false) }}"
+            - if: >
+                {{
+                  settings.get('stop_before_action', false)
+                  and expand(media_entities) | selectattr('state', 'eq', 'playing') | map(attribute='entity_id') | list | count > 0
+                }}
               then:
                 - alias: "Stop all targets which are playing"
                   service: media_player.media_stop
