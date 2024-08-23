@@ -108,7 +108,7 @@ script:
     sequence:
       - alias: "Version number"
         variables: &version
-          version: &ver 2024.8.0b1
+          version: &ver 2024.8.0
           settings: "{{ settings | default({}, true) }}"
       - alias: "Failsafe to remove all groups if the script was not running"
         if: >
