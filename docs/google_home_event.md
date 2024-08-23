@@ -64,7 +64,7 @@ action:
   - choose:
       - conditions: "{{ trigger.id == 'leaving' }}"
         sequence:
-          - service: script.google_home_event
+          - action: script.google_home_event
             data:
               target:
                 area_id: 'living_room'
@@ -72,7 +72,7 @@ action:
               resume_id: resume_when_home
       - conditions: "{{ trigger.id == 'arriving' }}"
         sequence:
-          - service: script.google_home_event
+          - action: script.google_home_event
             data:
               target:
                 area_id: 'living_room'
