@@ -54,7 +54,7 @@ homeassistant:
           seconds: 20
         max_runtime:
           minutes: 10
-        stop_before_action: true
+        stop_before_action: false
         # settings for automation
         enable_automation: false
         dashboard_cast: true
