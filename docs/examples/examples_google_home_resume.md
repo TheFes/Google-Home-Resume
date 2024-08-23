@@ -23,10 +23,10 @@ This example will play an mp3 on 2 targets, without additional data
 
 ```yaml
 alias: "Play sound when there is someone at the door"
-service: script.google_home_resume
+action: script.google_home_resume
 data:
   action:
-    - service: media_player.play_media
+    - action: media_player.play_media
       target:
         area_id: 'living_room'
         entity_id:
@@ -45,7 +45,7 @@ In this example a script is started instead of a service call directly to the en
 
 ```yaml
 alias: "Play sound when there is someone at the door via script"
-service: script.google_home_resume
+action: script.google_home_resume
 data:
   target:
     area_id: 'living_room'
@@ -53,7 +53,7 @@ data:
       - media_player.bedroom
       - media_player.guestroom
   action:
-    - service: script.play_sound
+    - action: script.play_sound
       data:
         file: "media-source://media_source/local/dingdong.mp3"
 ```
@@ -66,14 +66,14 @@ Enter the data for the TTS service call, and provide the volume under `extra`
 
 ```yaml
 - alias: "Send TTS using Google Home Resume script"
-  service: script.turn_on
+  action: script.turn_on
   target:
     entity_id: script.google_home_resume
   data:
     variables:
       action:
         - alias: "Send TTS message"
-          service: tts.google_cloud_say
+          action: tts.google_cloud_say
           target:
             entity_id: media_player.living_mini
           data:
@@ -95,14 +95,14 @@ The `picture_url` should be a full url (starting with `http://` or `https://`, n
 
 ```yaml
 - alias: "Send TTS with picture and "
-  service: script.turn_on
+  action: script.turn_on
   target:
     entity_id: script.google_home_resume
   data:
     variables:
       action:
         - alias: "Send TTS message"
-          service: tts.google_cloud_say
+          action: tts.google_cloud_say
           target:
             entity_id: 
               - media_player.living_mini
@@ -123,14 +123,14 @@ ___
 
 ```yaml
 - alias: "Send TTS with picture and "
-  service: script.turn_on
+  action: script.turn_on
   target:
     entity_id: script.google_home_resume
   data:
     variables:
       action:
         - alias: "Send TTS message"
-          service: tts.google_cloud_say
+          action: tts.google_cloud_say
           target:
             entity_id: 
               - media_player.living_mini
@@ -154,14 +154,14 @@ Don't put `wait: true` at the end of the last service_call, this will block the 
 
 ```yaml
 - alias: "Send multiple TTS to the same target"
-  service: script.turn_on
+  action: script.turn_on
   target:
     entity_id: script.google_home_resume
   data:
     variables:
       action:
         - alias: "First TTS message"
-          service: tts.google_cloud_say
+          action: tts.google_cloud_say
           target:
             entity_id: media_player.living_mini
           data:
@@ -169,7 +169,7 @@ Don't put `wait: true` at the end of the last service_call, this will block the 
           extra:
             wait: true
         - alias: "Second message"
-          service: tts.google_cloud_say
+          action: tts.google_cloud_say
           target:
             entity_id: media_player.living_mini
           data:
@@ -177,7 +177,7 @@ Don't put `wait: true` at the end of the last service_call, this will block the 
           extra:
             wait: true
         - alias: "Third and last message"
-          service: tts.google_cloud_say
+          action: tts.google_cloud_say
           target:
             entity_id: media_player.living_mini
           data:

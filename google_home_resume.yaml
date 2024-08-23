@@ -1,4 +1,4 @@
-# Scripts and automation to resume streams on Google Home speakes after it has been interrupted by service calls
+# Scripts and automation to resume streams on Google Home speakes after it has been interrupted by actions
 # Supports resuming of Spotify and online streams (like TuneIn)
 # Package contains 3 main scripts, the helper script to perform the resume and supporting template sensor and automation
 # for more details:
@@ -54,6 +54,7 @@ homeassistant:
           seconds: 20
         max_runtime:
           minutes: 10
+        stop_before_action: false
         # settings for automation
         enable_automation: false
         dashboard_cast: true
@@ -72,13 +73,13 @@ group:
 script:
   # The main Google Home Resume script
   google_home_resume:
-    alias: "00 - Google Home Resume"
+    alias: "Google Home Resume"
     description: Script for resuming Google Home speakers
     icon: mdi:cast-audio
     mode: parallel
     fields:
       target:
-        description: "Enter the targets in case they are not clear from the service calls"
+        description: "Enter the targets in case they are not clear from the actions"
         required: false
         selector:
           target:
@@ -88,7 +89,7 @@ script:
             device:
               integration: cast
       action:
-        description: "Actions to be performed (only service calls will work)"
+        description: "Actions to be performed (only those using action: or service: will work)"
         required: true
         selector:
           action:
@@ -107,7 +108,7 @@ script:
     sequence:
       - alias: "Version number"
         variables: &version
-          version: &ver 2023.8.0
+          version: &ver 2024.8.0
           settings: "{{ settings | default({}, true) }}"
       - alias: "Failsafe to remove all groups if the script was not running"
         if: >
@@ -134,28 +135,30 @@ script:
         variables:
           event_script: "{{ event_script | default(false) }}"
           automation: "{{ automation | default(false) }}"
-      - alias: "Set variables for service calls"
+      - alias: "Set variables for actions"
         variables: &service_vars
-          service_calls: >
+          actions: >
             {% set action = action | default([]) %}
-            {{ iif(action is mapping,[ action ], action) | selectattr('service', 'defined') | list }}
-          no_service_count: >
+            {% set services = iif(action is mapping,[ action ], action) | selectattr('service', 'defined') | list %}
+            {% set actions = iif(action is mapping,[ action ], action) | selectattr('action', 'defined') | list %}
+            {{ services + actions }}
+          no_action_count: >
             {% set action = action | default([]) %}
-            {{ iif(action is mapping,[ action ], action) | count - service_calls | count }}
+            {{ iif(action is mapping,[ action ], action) | count - actions | count }}
       - alias: "Wrong actions provided"
         choose:
-          - conditions: "{{ not (event_script or automation) and service_calls | count == 0 }}"
+          - conditions: "{{ not (event_script or automation) and actions | count == 0 }}"
             sequence:
-              - stop: "There were no service calls defined, no actions are performed. The script script has been aborted."
+              - stop: "There were no actions defined, nothing is performed. The script script has been aborted."
                 error: true
-          - conditions: "{{ not (event_script or automation) and no_service_count > 0 }}"
+          - conditions: "{{ not (event_script or automation) and no_action_count > 0 }}"
             sequence:
               - service: system_log.write
                 data:
                   level: "warning"
                   logger: "{{ this.entity_id }}"
                   message: >
-                    {{ no_service_count }} out of {{ service_calls | count }} actions were not performed because they are not service calls.
+                    {{ no_action_count }} out of {{ actions | count }} items were not performed because they are not actions.
       - alias: "Set variables to be used in the script"
         variables: &generic_vars
           start_time: "{{ start_time if start_time is defined else now() }}"
@@ -336,20 +339,23 @@ script:
                 {%- set e = ((e | replace(' ', '')).split(',') if e is string else e) | select('in', cast_entities) | list %}
               {# add targets based on actions #}
                 {# macro #}
-                  {%- macro service_data(service_calls, type) -%}
+                  {%- macro action_data(actions, type) -%}
                     {%- macro to_string(item) -%}
                       {{- (item if item is string else item | join(',')) | replace(' ', '') -}}
                     {%- endmacro -%}
                     {%- set ns = namespace(data=[]) -%}
-                    {%- for call in service_calls -%}
+                    {%- for action in actions -%}
                       {%- set input = [
-                                      call.get(type, []),
-                                      call.get('data', {}).get(type, []),
-                                      call.get('target', {}).get(type, []),
-                                      call.get('extra', {}).get(type, []),
-                                      call.get('data', {}).get('script_extra', {}).get(type, [])
+                                      action.get(type, []),
+                                      action.get('data', {}).get(type, []),
+                                      action.get('target', {}).get(type, []),
+                                      action.get('extra', {}).get(type, []),
+                                      action.get('data', {}).get('script_extra', {}).get(type, [])
                                     ]
                       -%}
+                      {%- if type == 'entity_id' and (action.get('action') or action.get('service')) == 'tts.speak' -%}
+                        {%- set input = input + [action.get('data', {}).get('media_player_entity_id')] -%}
+                      {%- endif -%}
                       {%- for i in input -%}
                         {%- set ns.data = ns.data + [to_string(i)] -%}
                       {%- endfor -%}
@@ -357,11 +363,11 @@ script:
                     {{- (ns.data | select() | join(',')) -}}
                   {%- endmacro -%}
                 {# entities #}
-                  {%- set entity_list = e + service_data(service_calls, 'entity_id').split(',') | unique | list %}
+                  {%- set entity_list = e + action_data(actions, 'entity_id').split(',') | unique | list %}
                 {# devices #}
-                  {%- set device_list = d + service_data(service_calls, 'device_id').split(',') | unique | list %}
+                  {%- set device_list = d + action_data(actions, 'device_id').split(',') | unique | list %}
                 {# areas #}
-                  {%- set area_list = a + service_data(service_calls, 'area_id').split(',') | unique | list %}
+                  {%- set area_list = a + action_data(actions, 'area_id').split(',') | unique | list %}
               {# create entity list based on device/area input #}
                 {# determine entities of areas #}
                   {%- set area_list = area_list | map('area_entities') | sum(start=[]) | list %}
@@ -534,9 +540,9 @@ script:
                     | list
                 }}
               command: interrupt_start
-      - alias: "Perform service calls defined in action"
+      - alias: "Perform actions defined in action"
         repeat:
-          for_each: "{{ service_calls }}"
+          for_each: "{{ actions }}"
           sequence:
             - variables:
                 service_call: "{{ repeat.item }}"
@@ -561,7 +567,7 @@ script:
                   {{ dict(extra, **script_extra) }}
                 volume_set: "{{ iif(extra.get('volume', '')) }}"
                 wait_set: "{{ extra.get('wait', false) }}"
-                tts: "{{ service_call.service.split('.')[0] == 'tts' }}"
+                tts: "{{ (service_call.get('action') or service_call.get('service')).split('.')[0] == 'tts' }}"
                 target_entities: >
                   {%- set e = target.get('entity_id', []) %}
                   {%- set d = target.get('device_id', []) %}
@@ -610,12 +616,18 @@ script:
                   }}
                 data: >
                   {{ dict(service_call.get('data', {}).items() | rejectattr('0', 'in', ['entity_id', 'area_id', 'device_id', 'script_extra']) | list) }}
-            - alias: "Stop all targets which are playing"
-              service: media_player.media_stop
-              target:
-                entity_id: "{{ expand(media_entities) | selectattr('state', 'eq', 'playing') | map(attribute='entity_id') | list }}"
-            - alias: "Wait until they are all stopped"
-              wait_template: "{{ expand(media_entities) | selectattr('state', 'eq', 'playing') | list | count == 0 }}"
+            - if: >
+                {{
+                  settings.get('stop_before_action', false)
+                  and expand(media_entities) | selectattr('state', 'eq', 'playing') | map(attribute='entity_id') | list | count > 0
+                }}
+              then:
+                - alias: "Stop all targets which are playing"
+                  service: media_player.media_stop
+                  target:
+                    entity_id: "{{ expand(media_entities) | selectattr('state', 'eq', 'playing') | map(attribute='entity_id') | list }}"
+                - alias: "Wait until they are all stopped"
+                  wait_template: "{{ expand(media_entities) | selectattr('state', 'eq', 'playing') | list | count == 0 }}"
             - alias: "Set volume to TTS volume if set"
               choose:
                 - conditions: "{{ volume_set }}"
@@ -651,7 +663,7 @@ script:
                           picture_url: "{{ extra.screen_tts.get('picture_url', '') }}"
                           action_type: tts
                       continue_on_error: true
-            - service: "{{ service_call.service }}"
+            - service: "{{ service_call.get('action') or service_call.get('service') }}"
               target: >
                 {%- if screen and tts %}
                   {{ dict(entity_id = settings.dummy_player) }}
@@ -732,7 +744,7 @@ script:
 
   # The Google Home Resume Helpers script which actually performs the resume on the speaker
   google_home_resume_helper:
-    alias: "00 - Google Home Resume - Helper Script"
+    alias: "Google Home Resume - Helper Script"
     description: Helper script for the Google Home Resume script
     icon: mdi:cast-audio
     mode: parallel
@@ -757,19 +769,15 @@ script:
                               )
                         }}
                       dashboard_cast: "{{ is_state_attr(player.entity_id, 'app_name', 'Home Assistant Lovelace') }}"
+                      last_updated: "{{ states[player.entity_id].last_updated }}"
                   - alias: "State changed since script started?"
                     wait_template: >
                       {{
                         event_script
                         or ytube_resume
-                        or (
-                            (states[player.entity_id].last_updated > as_datetime(start_time))
-                            and expand([player.entity_id] + player.members)
-                                  | selectattr('state', 'eq', 'playing')
-                                  | list | count > 0
-                          )
                         or image
                         or dashboard_cast
+                        or states[player.entity_id].last_updated > as_datetime(start_time)
                       }}
                     timeout: "00:00:30"
                   - variables:
@@ -1098,7 +1106,7 @@ script:
   # The Google Home Voice script to send an action to a Google Home on which you just asked a question
   # for more details: https://community.home-assistant.io/t/script-to-send-tts-to-the-right-google-home-based-on-voice-commands/346885
   google_home_voice:
-    alias: "00 - Google Home Voice"
+    alias: "Google Home Voice"
     icon: mdi:cast-audio
     mode: single
     max_exceeded: silent
@@ -1178,18 +1186,18 @@ script:
           entity_id: "{{ target }}"
       - alias: "Wrong actions provided"
         choose:
-          - conditions: "{{ service_calls | count == 0 }}"
+          - conditions: "{{ actions | count == 0 }}"
             sequence:
-              - stop: "There were no service calls defined, no actions are performed. The script script has been aborted."
+              - stop: "There were no actions defined, no items are performed. The script script has been aborted."
                 error: true
-          - conditions: "{{ no_service_count > 0 }}"
+          - conditions: "{{ no_action_count > 0 }}"
             sequence:
               - service: system_log.write
                 data:
                   level: "warning"
                   logger: "{{ this.entity_id }}"
                   message: >
-                    {{ no_service_count }} out of {{ service_calls | count }} actions were not performed because they are not service calls.
+                    {{ no_action_count }} out of {{ actions | count }} actions were not performed because they are not service calls.
       - alias: "Wait until plaer is idle"
         wait_template: "{{ is_state(target, 'idle') }}"
       - alias: "Use resume script or perform actions"
@@ -1203,9 +1211,9 @@ script:
               variables:
                 target_list: "{{ target_list }}"
                 player_data: "{{ player_data }}"
-                action: >
+                service: >
                   {%- set ns = namespace(action=[]) %}
-                  {%- for item in service_calls %}
+                  {%- for item in actions %}
                     {%- set data = item.get('data', {}) %}
                     {%- set extra = item.get('extra', {}) %}
                     {%- set service = item.service %}
@@ -1272,7 +1280,7 @@ script:
         else:
           - alias: "Perform service calls defined in action"
             repeat:
-              for_each: "{{ service_calls }}"
+              for_each: "{{ actions }}"
               sequence:
                 - variables:
                     data: >
@@ -1292,7 +1300,7 @@ script:
                       {%- else %}
                         {{ data }}
                       {%- endif %}
-                - service: "{{ repeat.item.service }}"
+                - service: "{{ repeat.item.get('action') or repeat.item.get('service') }}"
                   target: "{{ repeat.item.get('target', { 'entity_id': target_list}) }}"
                   data: "{{ data }}"
       - alias: "Volume defined"
@@ -1310,7 +1318,7 @@ script:
   # Example: you can stop the media_players when you leave home, and resume them when you return
   # for more details: https://github.com/TheFes/HA-configuration/blob/main/include/integrations/packages/google_cast/docs/google_home_event.md
   google_home_event:
-    alias: "00 - Google Home Event"
+    alias: "Google Home Event"
     description: Script for resuming Google Home speakers
     icon: mdi:cast-audio
     mode: parallel
@@ -1541,7 +1549,7 @@ template:
 
 # Automation for automatic resume after specific service calls
 automation:
-  - alias: 00 - Google Home Automatic Resume
+  - alias: Google Home Automatic Resume
     id: 417395bc-bd64-40a3-b20a-9062d426a01f
     mode: parallel
     max_exceeded: silent
