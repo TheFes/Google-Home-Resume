@@ -108,7 +108,7 @@ script:
     sequence:
       - alias: "Version number"
         variables: &version
-          version: &ver 2024.8.0
+          version: &ver 2024.9.0
           settings: "{{ settings | default({}, true) }}"
       - alias: "Failsafe to remove all groups if the script was not running"
         if: >
@@ -336,7 +336,7 @@ script:
                 {%- set e = target.get('entity_id', []) %}
                 {%- set a = (a | replace(' ', '')).split(',') if a is string else a %}
                 {%- set d = (d | replace(' ', '')).split(',') if d is string else d %}
-                {%- set e = ((e | replace(' ', '')).split(',') if e is string else e) | select('in', cast_entities) | list %}
+                {%- set e = ((e | replace(' ', '')).split(',') if e is string else e) | list %}
               {# add targets based on actions #}
                 {# macro #}
                   {%- macro action_data(actions, type) -%}
@@ -374,7 +374,7 @@ script:
                 {# determine entities of devices #}
                   {%- set device_list = device_list | map('device_entities') | sum(start=[]) | list %}
               {# create list with all cast entities #}
-                {%- set total_list = (area_list + device_list + entity_list) | unique | list %}
+                {%- set total_list = (area_list + device_list + entity_list) | expand | map(attribute='entity_id') | unique | list %}
                 {%- set total_list = total_list | select('in', cast_entities) | list %}
             {%- endif %}
             {# avoid to target both complete speaker groups and single members #}
@@ -756,6 +756,7 @@ script:
         then:
           - parallel:
               - sequence:
+                  - delay: 2
                   - variables:
                       image: >
                         {{
