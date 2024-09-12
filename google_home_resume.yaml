@@ -756,6 +756,7 @@ script:
         then:
           - parallel:
               - sequence:
+                  - delay: 2
                   - variables:
                       image: >
                         {{
