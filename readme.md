@@ -142,8 +142,8 @@ There are no required settings, but if you use Google Home speaker groups you sh
 | --- | --- | --- | --- |
 |primary_spotcast||`pepijn`|The Spotify account which is used as primary account for spotcast, should match the last part of the Spotify media player.|
 |radio_data||[My settings ](google_home_resume.yaml#L16-L28)|A dictionary with the pictures and titles. The picture urls should be full urls, not HA internal urls). As key value the artist should be used (check `media_artist` in developer tools > states)|
-|speaker_groups||[My settings](google_home_resume.yaml#L29-L49)|A combination of a dictionary and a list, with speaker groups of which all entities are included in another speaker group.|
-|default_volume_level|`0.25`|`0.5`|The default volume level to use to set the entity to if the old volume can not be retreived (this should actually never be used, but it there as a failsafe)|
+|speaker_groups||[My settings](google_home_resume.yaml#L29-L49)|A combination of a dictionary and a list, with the speaker groups created in the Google Home app and it's members.|
+|default_volume_level|`0.25`|`0.5`|The default volume level to use to restore the entity to if the old volume can not be retreived (this should actually never be used, but it there as a failsafe). This is not used for the TTS message|
 |dummy_player||`media_player.vlc_telnet`|The dummy media_player used for the TTS with picture and text feature
 |default_resume_delay|20 seconds|`20`|The delay after which the resume will started when it was interrupted by sending an image. Follows the syntax of [delay](https://www.home-assistant.io/docs/scripts/#wait-for-time-to-pass-delay), so also `"00:00:20"` or `seconds: 20` can be used.
 |max_runtime||"00:10:00"|The maximum duration the Resume script should run, if this time is reached the script will be stopped. This avoids entities being logged in the groups, which will stop them from being resumed on a new disruption. Follows the syntax of [delay](https://www.home-assistant.io/docs/scripts/#wait-for-time-to-pass-delay), so also `600` or `minutes: 10` can be used.
