@@ -48,6 +48,13 @@ ___
 
 ## Latest version
 
+### 2024.9.0
+
+#### 🌟 IMPROVEMENTS
+* Add support for the change from `service` to `action`
+* Add support for resume of group members of Home Assistant media player groups. Before this version, cast devices were not resumed if they were member of a media player group created in Home Assistant. Now the members of such groups are also checked for playing status, and resumed if needed. There is no need to add these groups to the `speaker_groups` section in the setting, as the members are stored in an attribute of the media player entity.
+* A short fixed delay of 2 seconds is added before resume in started to prevent resume is started before the TTS message or other action is performed.
+
 ### 2023.8.0
 
 ### 📻 GENERAL
