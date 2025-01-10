@@ -1133,7 +1133,7 @@ script:
           }}
         timeout: "00:00:30"
         continue_on_timeout: false
-      - alias: "Determine target for service calls"
+      - alias: "Determine target for actions"
         variables:
           target: >
             {{
@@ -1180,12 +1180,12 @@ script:
               variables:
                 target_list: "{{ target_list }}"
                 player_data: "{{ player_data }}"
-                service: >
+                action: >
                   {%- set ns = namespace(action=[]) %}
                   {%- for item in actions %}
                     {%- set data = item.get('data', {}) %}
                     {%- set extra = item.get('extra', {}) %}
-                    {%- set service = item.service %}
+                    {%- set service = item.service or item.action %}
                     {%- if target_variable is defined and target_variable %}
                       {%- if service == 'script.turn_on' %}
                         {%- set add = {'voice_target': target_list[0]} %}
