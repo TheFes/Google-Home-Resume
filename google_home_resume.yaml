@@ -171,12 +171,12 @@ script:
                 | sum(start=[])
             }}
       - alias: "Update Spotify data if there are Spotify entities"
-        if: "{{ spotcast_accounts| count > 0 }}"
+        if: "{{ spotcast_accounts| count > 1 }}"
         then:
           - alias: "Update Spotify entities"
-            service: homeassistant.update_entity
+            service: homeassistant.reload_config_entry
             target:
-              entity_id: "{{ integration_entities('spotcast') }}"
+              entity_id: "{{ integration_entities('spotcast') | select('search', '_spotify_profile$') | list }}"
       - variables:
           spotcast_active: >
             {%- set entities = integration_entities('spotcast') | select('match', 'media_player') | select('is_state', 'on') | list -%}
@@ -262,7 +262,11 @@ script:
                     %}
                     {# add Spotify account #}
                     {%- if entity.attributes.get('app_name') == 'Spotify' %}
-                      {%- set spotcast = spotcast_active | selectattr('entity', 'eq', entity.entity_id) | map(attribute='account') | join | default(default_spotcast, true) %}
+                      {%- set spotcast = spotcast_active
+                                          | selectattr('entity', 'eq', entity.entity_id)
+                                          | map(attribute='account')
+                                          | join | default(default_spotcast_account, true)
+                      %}
                       {%- set additional = dict(additional,
                                                 **dict(state='playing',
                                                         spotcast = spotcast
