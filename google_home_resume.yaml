@@ -12,42 +12,20 @@ homeassistant:
     script.google_home_resume:
       # enter settings for the script here, all settings are optional, you can remove sections if you don't need them
       # always leave the line with "settings: &settings" in!
-      settings: &settings
-        primary_spotcast: "pepijn"
+      settings: &settings # LEAVE THIS LINE IN
         radio_data:
-          NPO Radio 2:
-            picture: "http://192.168.2.3:8123/local/pictures/radio/npo_radio_2.png"
-            title: "Er is maar één NPO Radio 2"
-          Radio Veronica:
-            picture: "http://192.168.2.3:8123/local/pictures/radio/radio_veronica.png"
-            title: "WE. LOVE. MUSIC."
-          Willy:
-            picture: "http://192.168.2.3:8123/local/pictures/radio/willy.png"
-            title: "MUSIC MATTERS"
-          KINK:
-            picture: "http://192.168.2.3:8123/local/pictures/radio/kink.jpg"
-            title: "NO ALTERNATIVE"
+          Radio Example:
+            picture: "http://192.168.2.3:8123/local/pictures/radio/example.png"
+            title: "Radio Example Brings all the hits"
         speaker_groups:
-          media_player.huis_groep:
-            - media_player.keuken_hub
-            - media_player.slaapkamer_hub
-            - media_player.pepijn_mini
-            - media_player.woonkamer_home
-            - media_player.werkamer_marleen_minini
-            - media_player.zolder_werkkamer_stereo
-            - media_player.floris_mini
-          media_player.boven_groep:
-            - media_player.pepijn_mini
-            - media_player.slaapkamer_hub
-            - media_player.werkamer_marleen_mini
-            - media_player.zolder_werkkamer_stereo
-            - media_player.floris_mini
-          media_player.beneden_groep:
-            - media_player.keuken_hub
-            - media_player.woonkamer_home
-          media_player.zolder_groep:
-            - media_player.slaapkamer_hub
-            - media_player.zolder_werkkamer_stereo
+          media_player.first_floor_group:
+            - media_player.kitchen_hub
+            - media_player.living_hub
+            - media_player.toilet_mini
+          media_player.first_floor_group:
+            - media_player.bedroom_mini
+            - media_player.office_hub
+            - media_player.kids_room_mini
         default_volume_level: 0.25
         dummy_player: media_player.vlc_telnet
         default_resume_delay:
@@ -60,8 +38,8 @@ homeassistant:
         dashboard_cast: true
         announce_volume_automation: 0.4
       # settings for voice script
-      voice_settings: &voice_settings
-        check_for_title: "Witte ruis"
+      voice_settings: &voice_settings # LEAVE THIS LINE IN
+        check_for_title: "White noise"
         use_resume: true
 
 #### TO UPDATE TO A NEW VERSION, REPLACE EVERYTHING BELOW THIS LINE ####
@@ -108,7 +86,7 @@ script:
     sequence:
       - alias: "Version number"
         variables: &version
-          version: &ver 2024.9.0
+          version: &ver 2025.1.0
           settings: "{{ settings | default({}, true) }}"
       - alias: "Failsafe to remove all groups if the script was not running"
         if: >
@@ -165,10 +143,17 @@ script:
           speaker_groups: "{{ settings.get('speaker_groups') | default({}, true) }}"
           speaker_group_list: "{{ speaker_groups.keys() | list }}"
           cast_entities: "{{ integration_entities('cast') }}"
-          spotify_entities: "{{ integration_entities('spotify') }}"
-          primary_spotcast_check: >
-            {%- set accounts = spotify_entities | map('replace', 'media_player.spotify_', '') | list %}
-            {{ spotify_entities | count <= 1 or settings.get('primary_spotcast') in accounts }}
+          spotcast_accounts: >
+            {%- set entities = integration_entities('spotcast') | select('search', '_spotify_profile$') %}
+            {%- set ns = namespace(accounts=[]) %}
+            {% for e in entities %}
+              {% set ns.accounts = ns.accounts + [dict(id=state_attr(e, 'id'), account=state_attr(e, 'entry_id'))] %}
+            {% endfor %}
+            {{ ns.accounts }}
+          default_spotcast_account: >
+            {%- set default = integration_entities('spotcast') | select('search', '_is_default_account') | select('is_state', 'on') | join %}
+            {%- set id = default.split('_')[-4] %}
+            {{ spotcast_accounts | selectattr('id', 'eq', id) | map(attribute='account') | join }}
           ytube_music_entities: >
             {{ integration_entities('ytube_music_player') | select('match', '^media_player.') | list }}
           resume_active: >
@@ -186,12 +171,26 @@ script:
                 | sum(start=[])
             }}
       - alias: "Update Spotify data if there are Spotify entities"
-        if: "{{ spotify_entities | count > 0 }}"
+        if: "{{ spotcast_accounts| count > 0 }}"
         then:
           - alias: "Update Spotify entities"
             service: homeassistant.update_entity
             target:
-              entity_id: "{{ spotify_entities }}"
+              entity_id: "{{ integration_entities('spotcast') }}"
+      - variables:
+          spotcast_active: >
+            {%- set entities = integration_entities('spotcast') | select('match', 'media_player') | select('is_state', 'on') | list -%}
+            {%- set cast_names = integration_entities('cast') | map('state_attr', 'friendly_name') | list %}
+            {%- set ns = namespace(active=[]) %}
+            {%- for e in entities %}
+              {%- set id = e.split('_')[-2] %}
+              {%- set account = spotcast_accounts | selectattr('id', 'eq', id) | map(attribute='account') | join %}
+              {%- set name = state_attr(e, 'name') %}
+              {%- if name in cast_names %}
+                {%- set ns.active = ns.active + [dict(account=account, entity=integration_entities('cast') | expand | selectattr('name', 'eq', name) | map(attribute='entity_id') | join)] %}
+              {%- endif %}
+            {%- endfor %}
+            {{ ns.active }}
       - alias: "Store data of media player entities and determine target_list"
         variables:
           data_source: resume_script
@@ -233,15 +232,6 @@ script:
                                     if type != 'playing_member'
                                     else dict(entity_id = entity.entity_id, type = type, members=[])
                   %}
-                  {# check if there is a Spotify account playing on this entity #}
-                  {%- set list_check = expand([ entity.entity_id ] + members) | map(attribute='name') | list %}
-                  {%- set spotify_entity = expand(spotify_entities)
-                                              | selectattr('state', 'eq', 'playing')
-                                              | selectattr('attributes.source', 'in', list_check)
-                                              | map(attribute='object_id')
-                                              | join
-                                              | replace('spotify_', '')
-                  %}
                   {# add volume level #}
                   {%- if not state in ['off', 'unavailable', 'unknown'] or type == 'playing_member' %}
                     {%- set additional = dict(volume_level = entity.attributes.get('volume_level', settings.get('default_volume_level')) | round(2, default=0.25)) %}
@@ -250,16 +240,14 @@ script:
                   {%- endif %}
                   {# add metadata for playing entities #}
                   {%- if type == 'playing_member'%}
-                  {%- elif (spotify_entity or
-                          (
-                            entity.state == 'playing'
+                  {%- elif  entity.state == 'playing'
                             and expand(speaker_groups.items()
                                         | selectattr('0', 'eq', entity.entity_id)
-                                        | list) 
+                                        | list)
                                           | rejectattr('state', 'eq', 'playing')
                                           | list
                                           | count == 0
-                          )) and (type != 'group' or entity.entity_id in groups_playing)
+                          and (type != 'group' or entity.entity_id in groups_playing)
                   %}
                     {%- set additional = dict(additional, **dict(
                                               state = 'playing',
@@ -274,12 +262,7 @@ script:
                     %}
                     {# add Spotify account #}
                     {%- if entity.attributes.get('app_name') == 'Spotify' %}
-                      {%- set spotcast = spotify_entity if spotify_entity
-                                                and settings.primary_spotcast is defined
-                                                and spotify_entity != settings.primary_spotcast
-                                                and spotify_entities | count > 1
-                                                and primary_spotcast_check
-                                              else 'primary_account' %}
+                      {%- set spotcast = spotcast_active | selectattr('entity', 'eq', entity.entity_id) | map(attribute='account') | join | default(default_spotcast, true) %}
                       {%- set additional = dict(additional,
                                                 **dict(state='playing',
                                                         spotcast = spotcast
@@ -432,17 +415,6 @@ script:
                                                   | unique
                                                   | list
               }}
-      - alias: "Send log message about wrong wrong primary_spotcast"
-        if: "{{ not primary_spotcast_check }}"
-        then:
-          - service: system_log.write
-            data:
-              level: "warning"
-              logger: "{{ this.entity_id }}"
-              message: >
-                The primary_spotcast account provided was incorrect or not provided. 
-                The script will not use accounts for Spotify resume, and will always use 
-                the primary spotcast account.
       - variables:
           target_not_playing: >
             {%-
@@ -944,16 +916,12 @@ script:
                           - alias: "Spotify?"
                             conditions: "{{ spotify }}"
                             sequence:
-                              - variables:
-                                  service_data:
-                                    entity_id: "{{ player.entity_id }}"
-                                    force_playback: true
-                                  account_data:
-                                    account: "{{ player.spotcast }}"
                               - alias: "Resume spotify"
-                                service: spotcast.start
-                                data: >
-                                  {{ service_data if player.spotcast == 'primary_account' else dict(service_data, **account_data) }}
+                                service: spotcast.transfer_playback
+                                data:
+                                  media_player:
+                                    entity_id: "{{ player.entity_id }}"
+                                  account: "{{ player.spotcast | upper }}"
                               - alias: "Wait until song is playing"
                                 wait_template: >
                                   {{ is_state_attr(player.entity_id, 'app_name', 'Spotify') and iif(state_attr(player.entity_id, 'media_position')) }}
