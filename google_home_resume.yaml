@@ -18,7 +18,7 @@ homeassistant:
             picture: "http://192.168.2.3:8123/local/pictures/radio/example.png"
             title: "Radio Example Brings all the hits"
         speaker_groups:
-          media_player.first_floor_group:
+          media_player.ground_floor_group:
             - media_player.kitchen_hub
             - media_player.living_hub
             - media_player.toilet_mini
