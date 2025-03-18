@@ -108,7 +108,7 @@ script:
     sequence:
       - alias: "Version number"
         variables: &version
-          version: &ver 2024.9.0
+          version: &ver 2025.3.0
           settings: "{{ settings | default({}, true) }}"
       - alias: "Failsafe to remove all groups if the script was not running"
         if: >
@@ -864,13 +864,6 @@ script:
                           - alias: "BBC?"
                             conditions: "{{ bbc }}"
                             sequence:
-                              - alias: "Play video"
-                                service: media_player.play_media
-                                target:
-                                  entity_id: "{{ player.entity_id }}"
-                                data:
-                                  media_content_type: cast
-                                  media_content_id: '{{ dict(app_name="youtube", media_id=player.media_content_id) | to_json }}'
                               - service: media_player.play_media
                                 target:
                                   entity_id: "{{ player.entity_id }}"
