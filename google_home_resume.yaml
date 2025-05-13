@@ -108,7 +108,7 @@ script:
     sequence:
       - alias: "Version number"
         variables: &version
-          version: &ver 2025.3.0
+          version: &ver 2025.5.0
           settings: "{{ settings | default({}, true) }}"
       - alias: "Failsafe to remove all groups if the script was not running"
         if: >
@@ -552,18 +552,8 @@ script:
                   {%- set t = service_call.get('target', {}).items() | selectattr('0', 'in', ['entity_id', 'area_id', 'device_id']) | list %}
                   {{ dict(s, **dict(t, **dict(d))) }}
                 extra: >
-                  {%- set extra =
-                            dict(service_call.get('extra', {}).items()
-                                    | rejectattr('0', 'in', ['entity_id', 'area_id', 'device_id', 'script_extra']
-                                    | list)
-                                  )
-                  %}
-                  {%- set script_extra =
-                            dict(service_call.get('data', {}).get('script_extra', {}).items()
-                                    | rejectattr('0', 'in', ['entity_id', 'area_id', 'device_id', 'script_extra']
-                                    | list)
-                                  )
-                  %}
+                  {%- set extra = service_call.get('extra', {}) %}
+                  {%- set script_extra = service_call.get('data', {}).get('script_extra', {}) %}
                   {{ dict(extra, **script_extra) }}
                 volume_set: "{{ iif(extra.get('volume', '')) }}"
                 wait_set: "{{ extra.get('wait', false) }}"
